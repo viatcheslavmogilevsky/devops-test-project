@@ -1,0 +1,20 @@
+---
+- name: admin_app group is present
+  group: name=admin_app state=present
+  
+- name: admin_app user is present
+  user: name=admin_app group=admin_app shell=/usr/sbin/nologin state=present
+  
+- name: component home is present and has correct permissions
+  file: path={{ admin_component_home }} state=directory owner=admin_app group=admin_app
+
+- name: django is installed in the virtualenv
+  pip: name=django version=1.8.4 virtualenv={{ admin_component_home}}/venv
+  become: yes
+  become_user: admin_app
+  become_method: sudo
+
+- name: Make sure ssh keys are present
+  shell: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''
+  args:
+      creates: /etc/ssh/ssh_host_ed25519_key

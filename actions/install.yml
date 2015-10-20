@@ -1,0 +1,13 @@
+---
+- hosts: admin_app
+  become: yes
+  become_method: sudo
+  roles:
+    - admin_app/install
+
+- hosts: blog_app
+  serial: 1
+  become: yes
+  become_method: sudo
+  roles:
+    - blog_app/install

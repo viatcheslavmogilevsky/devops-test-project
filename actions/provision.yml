@@ -1,0 +1,14 @@
+---
+- hosts: provisioner
+  gather_facts: no
+  tasks:
+      - cloudformation:
+          stack_name: provectus-test-stack
+          state: present
+          region: us-east-1
+          template: "{{ playbook_dir }}/provisioning/provectus-test-stack.json"
+          template_parameters:
+              DBUser: provectus
+              DBPassword: verystrongpassword
+              KeyName: provectus-test-key
+              DetailedMonitoring: "true"

@@ -1,0 +1,12 @@
+---
+- hosts: admin_app
+  become: yes
+  become_method: sudo
+  roles:
+    - admin_app/configure
+
+- hosts: blog_app
+  become: yes
+  become_method: sudo
+  roles:
+    - blog_app/configure

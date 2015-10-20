@@ -1,0 +1,265 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Provectus test stack.",
+
+  "Parameters" : {
+
+    "DBUser": {
+      "NoEcho": "true",
+      "Description" : "The database admin account username",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "16",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
+    },
+
+    "DBPassword": {
+      "NoEcho": "true",
+      "Description" : "The database admin account password",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    },
+
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to instances",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+    },
+
+    "DetailedMonitoring": {
+      "Description" : "If true, detailed monitoring will be enabled for all EC2 instances.",
+      "Type": "String",
+      "AllowedValues": [ "true", "false" ],
+      "ConstraintDescription": "must be true or false"
+    }
+
+  },
+
+  "Resources" : {
+
+    "BlogAppELB": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "AvailabilityZones" : { "Fn::GetAZs" : "" },
+        "Instances" : [ { "Ref" : "BlogAppInstance" } ],
+        "Listeners" : [ {
+          "LoadBalancerPort" : "80",
+          "InstancePort" : "80",
+          "Protocol" : "HTTP"
+        } ],
+        "HealthCheck" : {
+          "Target" : "HTTP:80/",
+          "HealthyThreshold" : "3",
+          "UnhealthyThreshold" : "5",
+          "Interval" : "30",
+          "Timeout" : "5"
+        }
+      }
+    },
+
+    "BlogAppInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t1.micro",
+        "Monitoring": { "Ref": "DetailedMonitoring" },
+        "IamInstanceProfile": { "Ref": "BlogAppInstanceProfile" },
+        "SecurityGroupIds" : [ { "Ref" : "BlogAppInstanceSecurityGroup" } ],
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId" : "ami-896d85e2",
+        "Tags": [
+            {"Key": "Component",
+             "Value": "BlogApp"},
+            {"Key": "Environment",
+             "Value": "AWS"}
+        ]
+      }
+    },
+
+    "AdminAppInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t1.micro",
+        "Monitoring": { "Ref": "DetailedMonitoring" },
+        "IamInstanceProfile": { "Ref": "AdminAppInstanceProfile" },
+        "SecurityGroupIds" : [ { "Ref" : "AdminAppInstanceSecurityGroup" } ],
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId" : "ami-896d85e2",
+        "Tags": [
+            {"Key": "Component",
+             "Value": "AdminApp"},
+            {"Key": "Environment",
+             "Value": "AWS"}
+        ]
+      }
+    },
+
+    "BlogAppInstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via port 22, HTTP via 80 and HTTPS via 443",
+        "SecurityGroupIngress" : [ {
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : "0.0.0.0/0"
+        }, {
+          "IpProtocol" : "tcp",
+          "FromPort" : "80",
+          "ToPort" : "80",
+          "CidrIp" : "0.0.0.0/0"
+        }, {
+          "IpProtocol" : "tcp",
+          "FromPort" : "443",
+          "ToPort" : "443",
+          "CidrIp" : "0.0.0.0/0"
+        } ]
+      }
+    },
+
+    "AdminAppInstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via port 22, HTTP via 80 and HTTPS via 443",
+        "SecurityGroupIngress" : [ {
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : "0.0.0.0/0"
+        }, {
+          "IpProtocol" : "tcp",
+          "FromPort" : "80",
+          "ToPort" : "80",
+          "CidrIp" : "0.0.0.0/0"
+        }, {
+          "IpProtocol" : "tcp",
+          "FromPort" : "443",
+          "ToPort" : "443",
+          "CidrIp" : "0.0.0.0/0"
+        } ]
+      }
+    },
+
+    "RedisCluster" : {
+      "Type": "AWS::ElastiCache::CacheCluster",
+      "Properties": {
+        "CacheNodeType"           : "cache.m1.small",
+        "CacheSecurityGroupNames" : [ { "Ref" : "RedisClusterSecurityGroup" } ],
+        "Engine"                  : "Redis",
+        "NumCacheNodes"           : "1"
+      }
+    },
+
+    "RedisClusterSecurityGroup": {
+      "Type": "AWS::ElastiCache::SecurityGroup",
+      "Properties": {
+        "Description"  : "Lock the cluster down"
+      }
+    },
+
+    "RedisClusterSecurityGroupIngressAdminApp": {
+        "Type": "AWS::ElastiCache::SecurityGroupIngress",
+        "Properties": {
+            "CacheSecurityGroupName": {"Ref": "RedisClusterSecurityGroup"},
+            "EC2SecurityGroupName": {"Ref": "AdminAppInstanceSecurityGroup"}
+        }
+    },
+
+    "RedisClusterSecurityGroupIngressBlogApp": {
+        "Type": "AWS::ElastiCache::SecurityGroupIngress",
+        "Properties": {
+            "CacheSecurityGroupName": {"Ref": "RedisClusterSecurityGroup"},
+            "EC2SecurityGroupName": {"Ref": "BlogAppInstanceSecurityGroup"}
+        }
+    },
+
+    "Database" : {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties" : {
+        "AllocatedStorage" : "100",
+        "DBInstanceClass" : "db.m1.small",
+        "Engine" : "postgres",
+        "DBSecurityGroups": [{"Ref": "DatabaseSecurityGroup"}],
+        "DBName": "provectus",
+        "MasterUsername" : { "Ref" : "DBUser" },
+        "MasterUserPassword" : { "Ref" : "DBPassword" }
+      }
+    },
+
+    "DatabaseSecurityGroup": {
+      "Type": "AWS::RDS::DBSecurityGroup",
+      "Properties": {
+        "GroupDescription": "Database SG",
+        "DBSecurityGroupIngress" : [ {
+          "EC2SecurityGroupId": {"Fn::GetAtt": ["AdminAppInstanceSecurityGroup", "GroupId"] }
+        }, {
+          "EC2SecurityGroupId": {"Fn::GetAtt": ["BlogAppInstanceSecurityGroup", "GroupId"] }
+        } ]
+      }
+    },
+
+    "BlogAppRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement"  : [{
+            "Effect"   : "Allow",
+            "Principal": { "Service": [ "ec2.amazonaws.com" ] },
+            "Action"   : [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/"
+      }
+    },
+
+    "AdminAppRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement"  : [{
+            "Effect"   : "Allow",
+            "Principal": { "Service": [ "ec2.amazonaws.com" ] },
+            "Action"   : [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/"
+      }
+    },
+
+    "RedisAccessPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName" : "RedisAccess",
+        "PolicyDocument" : {
+          "Statement"  : [ {
+            "Effect"   : "Allow",
+            "Action"   : "elasticache:DescribeCacheClusters",
+            "Resource" : "*"
+          } ]
+        },
+        "Roles": [ { "Ref": "BlogAppRole" }, { "Ref": "AdminAppRole" } ]
+      }
+    },
+
+    "BlogAppInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "BlogAppRole" } ]
+      }
+    },
+
+    "AdminAppInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [ { "Ref": "AdminAppRole" } ]
+      }
+    }
+
+  }
+}
