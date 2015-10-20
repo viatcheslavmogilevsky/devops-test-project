@@ -1,0 +1,4 @@
+---
+dependencies:
+    - role: common/nginx/install
+    - role: common/virtualenv/install

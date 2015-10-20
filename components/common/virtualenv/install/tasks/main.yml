@@ -1,0 +1,18 @@
+---
+- name: python-setuptools is latest
+  action: "{{ ansible_pkg_mgr }} name={{ item }} state=latest"
+  with_items:
+      - python-setuptools
+      - python-pip
+  become: yes
+  become_method: sudo
+
+- name: pip is latest
+  pip: name=pip state=latest
+  become: yes
+  become_method: sudo
+
+- name: virtualenv is latest
+  pip: name=virtualenv state=latest
+  become: yes
+  become_method: sudo

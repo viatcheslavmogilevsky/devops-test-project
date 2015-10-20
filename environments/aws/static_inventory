@@ -1,0 +1,9 @@
+[tag_Component_BlogApp]
+
+[blog_app:children]
+tag_Component_BlogApp
+
+[tag_Component_AdminApp]
+
+[admin_app:children]
+tag_Component_AdminApp

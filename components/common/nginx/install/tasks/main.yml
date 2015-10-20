@@ -1,0 +1,30 @@
+---
+- name: nginx repo is configured
+  yum: name=http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm
+  become: yes
+  become_method: sudo
+  when: ansible_os_family == 'RedHat'
+
+- name: nginx repo key is added
+  apt_key: url=http://nginx.org/keys/nginx_signing.key
+  become: yes
+  become_method: sudo
+  when: ansible_os_family == 'Debian'
+
+- name: nginx repo is configured
+  shell: "echo 'deb http://nginx.org/packages/debian/ jessie nginx' > /etc/apt/sources.list.d/nginx.list"
+  become: yes
+  become_method: sudo
+  when: ansible_os_family == 'Debian'
+
+- name: nginx is latest
+  yum: name=nginx state=latest
+  become: yes
+  become_method: sudo
+  when: ansible_os_family == 'RedHat'
+
+- name: nginx is latest
+  apt: name=nginx state=latest update_cache=yes
+  become: yes
+  become_method: sudo
+  when: ansible_os_family == 'Debian'
